@@ -12,7 +12,7 @@ public class TestSimpleXxlJob extends NewXxlJobTest {
     private SampleXxlJob sampleXxlJob;
 
     @Test
-    public void test() throws NoSuchFieldException, InvocationTargetException, NoSuchMethodException, IllegalAccessException {
+    public void test() throws NoSuchFieldException, InvocationTargetException, NoSuchMethodException, IllegalAccessException, InterruptedException {
         runJob(sampleXxlJob, "demoJobHandler");
 
     }

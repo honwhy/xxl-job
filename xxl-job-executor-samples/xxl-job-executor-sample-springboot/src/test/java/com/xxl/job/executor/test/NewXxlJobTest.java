@@ -45,7 +45,7 @@ public class NewXxlJobTest {
     @MockBean
     private XxlJobSpringExecutor xxlJobSpringExecutor;
 
-    public void runJob(Object bean, String jobHandlerName) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException, NoSuchFieldException {
+    public void runJob(Object bean, String jobHandlerName) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException, NoSuchFieldException, InterruptedException {
         // make IJobHandler
         Map<Method, XxlJob> annotatedMethods = null;   // referred to ：org.springframework.context.event.EventListenerMethodProcessor.processBean
         try {
@@ -86,7 +86,7 @@ public class NewXxlJobTest {
         runThreadByNetty(jobHandlerName, jobId, jobThread);
     }
 
-    private void runThreadByNetty(String jobHandlerName, int jobId, JobThread jobThread) throws NoSuchFieldException, IllegalAccessException {
+    private void runThreadByNetty(String jobHandlerName, int jobId, JobThread jobThread) throws NoSuchFieldException, IllegalAccessException, InterruptedException {
 
         ExecutorBiz executorBiz = new ExecutorBizImpl();
         String accessToken = "1234567890";
@@ -146,14 +146,28 @@ public class NewXxlJobTest {
 
         });
         testThread.start();
-        // 表示 JobThread执行完毕
-        await().forever().until(() -> !jobThread.isRunningOrHasQueue());
-        // reflect
-        Field toStopField = JobThread.class.getDeclaredField("toStop");
-        toStopField.setAccessible(true);
-        toStopField.set(jobThread, true);
 
-        await().forever().until(() -> !testThread.isAlive());
+        Thread stopThread = new Thread(() ->{
+            // 表示 JobThread执行完毕
+            await().forever().until(() -> {
+                boolean empty = !jobThread.isRunningOrHasQueue();
+                Field idleTimesField = JobThread.class.getDeclaredField("idleTimes");
+                idleTimesField.setAccessible(true);
+                Integer count = ((Integer) idleTimesField.get(jobThread));
+                boolean beat = count >= 1;
+                return empty && beat;
+            });
+            // reflect
+            try {
+                Field toStopField = JobThread.class.getDeclaredField("toStop");
+                toStopField.setAccessible(true);
+                toStopField.set(jobThread, true);
+            } catch (Exception ignore) {
+                // ignore
+            }
+        });
+       stopThread.start();;
+       stopThread.join();
 
     }
 
